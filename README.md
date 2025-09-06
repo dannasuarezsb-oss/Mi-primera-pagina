@@ -1,2 +1,2 @@
-# Mi-primera-pagina
+# Freydelrifas
 Mi primera página web de rifa
