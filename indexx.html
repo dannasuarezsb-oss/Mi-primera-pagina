@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rifa Online con Firebase</title>
+<style>
+  body { font-family: Arial; background:#f4f4f4; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0;}
+  .container { background:white; padding:20px 30px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); width:100%; max-width:500px;}
+  h1 { text-align:center; }
+  label { display:block; margin-top:10px; }
+  input, select, button { width:100%; padding:8px; margin-top:5px; border-radius:5px; border:1px solid #ccc; }
+  button { margin-top:20px; background-color:#007bff; color:white; border:none; cursor:pointer; }
+  button:hover { background-color:#0056b3; }
+  #mensaje { display:none; margin-top:20px; background:#e9ffe9; padding:10px; border-radius:5px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Rifa Online</h1>
+  <button id="participarBtn">Participar</button>
+
+  <form id="formRifa" style="display:none;">
+    <label>Nombre completo</label>
+    <input type="text" id="nombre" required>
+
+    <label>Teléfono</label>
+    <input type="tel" id="telefono" required>
+
+    <label>Correo electrónico</label>
+    <input type="email" id="correo" required>
+
+    <label>Cédula</label>
+    <input type="text" id="cedula" required>
+
+    <label>Cantidad de tickets</label>
+    <select id="tickets">
+      <option value="2">2</option>
+      <option value="5">5</option>
+      <option value="10">10</option>
+      <option value="20">20</option>
+    </select>
+
+    <button type="submit">Continuar al Pago</button>
+  </form>
+
+  <form id="formPago" style="display:none;">
+    <label>Método de pago</label>
+    <select id="metodoPago" required>
+      <option value="transferencia">Transferencia</option>
+      <option value="paypal">PayPal</option>
+      <option value="otro">Otro</option>
+    </select>
+
+    <label>Subir comprobante de pago</label>
+    <input type="file" id="comprobante" required>
+
+    <button type="submit">Enviar Comprobante</button>
+  </form>
+
+  <div id="mensaje">
+    Su comprobante ha sido enviado y sus tickets serán liberados después de la verificación.
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<script>
+  // 🔹 Configuración de tu proyecto Firebase
+  const firebaseConfig = {
+    apiKey: "TU_API_KEY",
+    authDomain: "TU_AUTH_DOMAIN",
+    projectId: "TU_PROJECT_ID",
+    storageBucket: "TU_STORAGE_BUCKET",
+    messagingSenderId: "TU_MESSAGING_SENDER_ID",
+    appId: "TU_APP_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  const participarBtn = document.getElementById('participarBtn');
+  const formRifa = document.getElementById('formRifa');
+  const formPago = document.getElementById('formPago');
+  const mensaje = document.getElementById('mensaje');
+
+  participarBtn.addEventListener('click', () => {
+    participarBtn.style.display = 'none';
+    formRifa.style.display = 'block';
+  });
+
+  let participanteData = {};
+
+  formRifa.addEventListener('submit', (e) => {
+    e.preventDefault();
+    participanteData = {
+      nombre: document.getElementById('nombre').value,
+      telefono: document.getElementById('telefono').value,
+      correo: document.getElementById('correo').value,
+      cedula: document.getElementById('cedula').value,
+      tickets: parseInt(document.getElementById('tickets').value),
+      fechaRegistro: new Date(),
+      pagoVerificado: false
+    };
+    formRifa.style.display = 'none';
+    formPago.style.display = 'block';
+  });
+
+  formPago.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const comprobanteFile = document.getElementById('comprobante').files[0];
+    const metodoPago = document.getElementById('metodoPago').value;
+
+    // Subir comprobante a Firebase Storage
+    const storageRef = storage.ref(`comprobantes/${participanteData.cedula}_${Date.now()}`);
+    await storageRef.put(comprobanteFile);
+    const urlComprobante = await storageRef.getDownloadURL();
+
+    // Guardar participante en Firestore
+    await db.collection('participantes').add({
+      ...participanteData,
+      metodoPago,
+      comprobanteURL: urlComprobante
+    });
+
+    formPago.style.display = 'none';
+    mensaje.style.display = 'block';
+  });
+</script>
+
+</body>
+</html>
